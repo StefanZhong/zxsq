@@ -1,0 +1,11 @@
+Accept:*/*
+Accept-Encoding:gzip, deflate, br
+Accept-Language:zh-CN,zh;q=0.9
+authorization:************************************
+Connection:keep-alive
+Host:api.zsxq.com
+Origin:https://wx.zsxq.com
+Referer:https://wx.zsxq.com/dweb/
+User-Agent:Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.140 Safari/537.36
+x-request-id:bad3c2fd-5e00-1c10-15d9-2507dbf1457d
+x-version:1.9.0
