@@ -166,8 +166,9 @@ class DataHandler():
                 word = d.save_to_word(topics, group[0], date, group[2])
                 print('成功导出Word文档，位置在{}'.format(word))
                 if callback and callable(callback):
-                    callback(word, group[0], date)
-                    #callback用于后续操作，提供三个参数，Word路径，group_id, 日期，可以用来发邮件。
+                    callback(word, group[0], group[1], date)
+                    # callback用于后续操作，提供四个参数，
+                    # Word路径，group_name，group_id, 日期，可以用来发邮件。
 
 
 if __name__ == '__main__':
