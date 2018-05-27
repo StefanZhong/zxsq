@@ -90,7 +90,7 @@ class DocxHelper():
     def add_QA(self, question, answer, create_time, images_q, images_a, links):
         self.add_paragragh("【{} {}】问题:{}".format(create_time[:10], create_time[11:19], question), RGBColor(0, 0, 0),
                            images_q, False, links)
-        self.add_paragragh("【老齐回答】:{}\n".format(answer), RGBColor(139, 58, 58), images_a, True, [])
+        self.add_paragragh("【星主回答】:{}\n".format(answer), RGBColor(139, 58, 58), images_a, True, [])
 
     def add_Talk(self, text, create_time, images, links, file_links):
         p = self.add_paragragh("【{} {}】{}".format(create_time[:10], create_time[11:19], text), RGBColor(0, 0, 0),
