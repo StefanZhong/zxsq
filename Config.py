@@ -13,6 +13,10 @@ def log(s):
         import time, os
         print(s)
         f.write(time.strftime('[%Y-%m-%d %H:%M:%S]') + s + os.linesep)
+        import traceback
+        if sys.exc_info()[0]:
+            traceback.print_exc(file=f)
+            traceback.print_exc()
 
 
 try:

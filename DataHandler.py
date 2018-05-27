@@ -6,9 +6,14 @@ from PrepareHeaders import getHeadersFromText
 from Config import *
 import os, glob
 from DocxHelper import DocxHelper
+import datetime
 
 
 class DataHandler():
+    def __init__(self, start_date, end_date):
+        self.start_date = start_date
+        self.end_date = end_date
+
     def get_file_download_url(self, file_id):
         try:
 
@@ -46,9 +51,11 @@ class DataHandler():
         return file_links
 
     def download_image(self, link):
-        import os
-        file_name = link.split('/')[-1]
 
+        import os
+        import hashlib
+        # file_name = link.split('/')[-1]
+        file_name = hashlib.md5(link.encode('utf-8')).hexdigest() + '.jpg'
         file_name = os.path.join(IMAGE_FOLDER, file_name)
 
         import os
@@ -56,6 +63,7 @@ class DataHandler():
             return file_name
 
         file_res = requests.get(link)
+
         if file_res.status_code == 200:
             with open(file_name, 'wb') as f:
                 f.write(file_res.content)
@@ -125,12 +133,13 @@ class DataHandler():
                     doc.add_QA(*qa_topics)
 
             doc.save()
+            print('成功导出Word文档，位置在{}'.format(file_name))
             return file_name
         except Exception as e:
             log('Save to word failed. {}'.format(e.args))
             return None
 
-    def load_data(self, group_id, date):
+    def load_data(self, group_id):
         files = glob.glob(TEMP_FOLDER + os.path.sep + "Topic_*.txt")
         if files:
             topics = []
@@ -140,7 +149,7 @@ class DataHandler():
                         data = f.read()
                         topic = json.loads(data)
                         if topic['group']['group_id'] == group_id \
-                                and topic['create_time'][:10] == date:
+                                and topic['create_time'][:10] == self.start_date:
                             topics.append(topic)
                             # os.remove(file)
                 except Exception as e:
@@ -155,21 +164,18 @@ class DataHandler():
         groups = [('老齐的读书圈', 454548818428, 88288542115152),
                   ('齐俊杰的粉丝群', 552521181154, 88288542115152)]
         for group in groups:
-            d = DataHandler()
-            import datetime
-
-            new_time = datetime.datetime.now() - datetime.timedelta(days=1)
-            date = datetime.datetime.strftime(new_time, '%Y-%m-%d')
             # date为文章所在日期
-            topics = d.load_data(group[1], date)
+            topics = self.load_data(group[1])
             if topics:
-                word = d.save_to_word(topics, group[0], date, group[2])
-                print('成功导出Word文档，位置在{}'.format(word))
+                word = self.save_to_word(topics, group[0], self.start_date, group[2])
+
                 if callback and callable(callback):
-                    callback(word, group[0], group[1], date)
+                    callback(word, group[0], group[1], self.start_date)
                     # callback用于后续操作，提供四个参数，
                     # Word路径，group_name，group_id, 日期，可以用来发邮件。
 
 
 if __name__ == '__main__':
-    DataHandler().run(None)
+    start_date = datetime.datetime.now() - datetime.timedelta(days=1)
+    start_date = datetime.datetime.strftime(start_date, '%Y-%m-%d')
+    DataHandler(start_date, None).run(None)
