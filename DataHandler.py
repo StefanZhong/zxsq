@@ -29,13 +29,22 @@ class DataHandler():
     def get_links(self, text):
         import re
         import urllib.request
+        # text1 = text
+        text = urllib.request.unquote(text)
+        result = re.findall('<e type="web" href="(.*?)".*?title="(.*?)".*?/>', text)
 
-        result = re.findall('href="(.*?)"[\s]*title="(.*?)"', urllib.request.unquote(text))
         links = []
         if result:
-            text = text[:text.index("<e type=")]
-            links.append((result[0][1], result[0][0]))
-            # print(result[0][0])
+            for link in result:
+                s = re.findall('<e type="web" href="{}".*?title="{}".*?/>'.format(link[0],link[1]), text)
+                text = text.replace(s[0], '')
+                links.append((link[1], link[0]))
+
+        title = re.findall('<e type="mention".*?title="(.*?)"', text)
+        if title:
+            for t in title:
+                s = re.findall('<e type="mention".*?title="{}".*?/>'.format(t), text)
+                text = text.replace(s[0], t)
         return text, links
 
     def get_file_links(self, topic):
@@ -60,13 +69,19 @@ class DataHandler():
 
         import os
         if os.path.isfile(file_name):
+            with open(file_name, 'rb') as f:
+                if len(f.read()) // 1024 > 55:  # ignore big picture.
+                    return None
             return file_name
 
         file_res = requests.get(link)
 
         if file_res.status_code == 200:
             with open(file_name, 'wb') as f:
+                if len(file_res.content) // 1024 > 55:  # ignore big picture.
+                    return None
                 f.write(file_res.content)
+
                 return file_name
         else:
             return False
@@ -114,14 +129,17 @@ class DataHandler():
                         if owner_comment:
                             text = topic['talk']['text']
 
+
                             text, links = self.get_links(text)
                             qa_topics.append((text, owner_comment, topic['create_time'],
                                               self.get_images(topic, 'talk'), [], links))
 
                 elif topic['type'] == 'q&a':
                     text = topic['question']['text']
+
                     text, links = self.get_links(text)
                     answer = topic['answer']['text']
+
                     answer, links2 = self.get_links(answer)
                     qa_topics.append((text, answer, topic['create_time'],
                                       self.get_images(topic, 'question'), self.get_images(topic, 'answer'), links))
