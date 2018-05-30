@@ -68,25 +68,34 @@ class EmailHelper:
 if __name__ == '__main__':
     print('Creating the email...')
     from Config import *
+    import datetime
 
-    group = GROUPS[2]
 
-    receivers = ['stefan_zhong@013201.cn']
+    start_date = datetime.datetime.now() - datetime.timedelta(days=1)
+    start_date = datetime.datetime.strftime(start_date, '%Y-%m-%d')
+
+    group = GROUPS[0]
 
     em = EmailHelper()
     mail_msg = """
-    Hi There,<p></p>This is a test email from EmailHelper.
-                       <p></p>Best regards,<p></p>EmailHelper
+    Hi There,<p></p>This is a test email from {0}.
+        <p></p>
+         Best regards,<p></p>{0}
+    """.format(group.sender_name)
 
-    """  # .format(image_line)
-    print(group.sender_name)
     mail = em.create_mail(group.sender_name, group.sender,
-                          '{}每日更新 - {}'.format('朋友圈', '2018-05-24')
+                          '{}每日更新 - {}'.format('朋友圈', start_date)
                           )
-
     em.add_content(mail_msg, mail)
-    print(group.sender, receivers, mail, group.SMTP,
-                      group.port, group.sender, group.password)
+
     # em.attach_file(r"C:\test.txt", mail)
-    em.send_email_ssl(group.sender, receivers, mail, group.SMTP,
-                      group.port, group.sender, group.password)
+
+    receivers = []
+    with open('test_subscriber_{}.txt'.format(group.group_id), encoding='utf-8') as f:
+        for address in f.readlines():
+            receivers.append(address.strip())
+
+    if len(receivers):
+        em.send_email_ssl(group.sender, receivers, mail,
+                          group.SMTP, group.port,
+                          group.sender, group.password)
