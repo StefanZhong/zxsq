@@ -10,9 +10,10 @@ import datetime
 
 
 class DataHandler():
-    def __init__(self, start_date, end_date):
+    def __init__(self, group, start_date, end_date):
         self.start_date = start_date
         self.end_date = end_date
+        self.group = group
 
     def get_file_download_url(self, file_id):
         try:
@@ -36,7 +37,7 @@ class DataHandler():
         links = []
         if result:
             for link in result:
-                s = re.findall('<e type="web" href="{}".*?title="{}".*?/>'.format(link[0],link[1]), text)
+                s = re.findall('<e type="web" href="{}".*?title="{}".*?/>'.format(link[0], link[1]), text)
                 text = text.replace(s[0], '')
                 links.append((link[1], link[0]))
 
@@ -97,9 +98,9 @@ class DataHandler():
 
         return images
 
-    def save_to_word(self, topics, group_name, date, owner_id):
+    def save_to_word(self, topics, date):
         try:
-            file_name = '{}发贴及问答汇总{}.docx'.format(group_name, date.replace('-', ''))
+            file_name = '{}发贴及问答汇总{}.docx'.format(self.group.group_name, date.replace('-', ''))
             file_name = os.path.join(TEMP_FOLDER, file_name)
             doc = DocxHelper(file_name)
 
@@ -108,7 +109,7 @@ class DataHandler():
             for topic in topics:
                 if topic['type'] == 'talk':
 
-                    if owner_id == topic['talk']['owner']['user_id']:
+                    if self.group.owner_id == topic['talk']['owner']['user_id']:
 
                         text = topic['talk']['text']
                         text, links = self.get_links(text)
@@ -124,11 +125,10 @@ class DataHandler():
                         if 'show_comments' not in topic.keys():
                             continue
                         for comment in topic['show_comments']:
-                            if comment['owner']['user_id'] == owner_id:
+                            if comment['owner']['user_id'] == self.group.owner_id:
                                 owner_comment = comment['text']
                         if owner_comment:
                             text = topic['talk']['text']
-
 
                             text, links = self.get_links(text)
                             qa_topics.append((text, owner_comment, topic['create_time'],
@@ -157,8 +157,10 @@ class DataHandler():
             log('Save to word failed. {}'.format(e.args))
             return None
 
-    def load_data(self, group_id):
+    def load_data(self):
+
         files = glob.glob(TEMP_FOLDER + os.path.sep + "Topic_*.txt")
+
         if files:
             topics = []
             for file in files:
@@ -166,7 +168,8 @@ class DataHandler():
                     with open(file, 'r', encoding='utf-8') as f:
                         data = f.read()
                         topic = json.loads(data)
-                        if topic['group']['group_id'] == group_id \
+
+                        if topic['group']['group_id'] == self.group.group_id \
                                 and topic['create_time'][:10] == self.start_date:
                             topics.append(topic)
                             # os.remove(file)
@@ -174,26 +177,32 @@ class DataHandler():
                     log('Load data from {} failed. {}'.format(file, e.args))
 
             if len(topics) > 0:
-                return topics
+                return sorted(topics, key=lambda topic: topic['create_time'])
 
         return None
 
     def run(self, callback):
-        groups = [('老齐的读书圈', 454548818428, 88288542115152),
-                  ('齐俊杰的粉丝群', 552521181154, 88288542115152)]
-        for group in groups:
-            # date为文章所在日期
-            topics = self.load_data(group[1])
-            if topics:
-                word = self.save_to_word(topics, group[0], self.start_date, group[2])
 
-                if callback and callable(callback):
-                    callback(word, group[0], group[1], self.start_date)
-                    # callback用于后续操作，提供四个参数，
-                    # Word路径，group_name，group_id, 日期，可以用来发邮件。
+        # date为文章所在日期
+
+        topics = self.load_data()
+
+        if topics:
+
+            word = self.save_to_word(topics, self.start_date)
+
+            if callback and callable(callback):
+                callback(self.group, word, self.start_date)
+                # callback用于后续操作，提供三个参数，
+                # 星球详情，Word路径, 日期，可以用来发邮件。
+
+
+def do_something(group, word, date):
+    print(group, word, date)
 
 
 if __name__ == '__main__':
     start_date = datetime.datetime.now() - datetime.timedelta(days=1)
     start_date = datetime.datetime.strftime(start_date, '%Y-%m-%d')
-    DataHandler(start_date, None).run(None)
+    groups = Group.load_groups()
+    DataHandler(groups[0], start_date, None).run(do_something)

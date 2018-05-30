@@ -6,24 +6,23 @@ import time
 from requests import RequestException
 from urllib.parse import quote
 import json
-from PrepareHeaders import getHeadersFromText
 import re
-from Config import *
 import configparser
-import os
-
+from pymongo import MongoClient
+from Config import *
+from PrepareHeaders import getHeadersFromText
 
 
 class Downloader():
 
-    def __init__(self, group_id, owner_id, callback):
-        self.group_id = group_id
-        self.owner_id = owner_id
+    def __init__(self, group, callback):
+        self.group = group
+
         self.count = 0
         self.process_data = callback
         self.config = configparser.ConfigParser()
         self.group_log_file = 'groups.ini'
-        self.config.read(self.group_log_file)
+        self.config.read(self.group_log_file, encoding='utf-8')
 
     def get_file_download_url(self, file_id):
         try:
@@ -71,7 +70,7 @@ class Downloader():
                         self.count += 1
                         # if file need to be downloaded, then download the file
                         if (DOWNLOAD_FILE_FLAG == 'True' and topic['type'] == 'talk'
-                                and topic['talk']['owner']['user_id'] == self.owner_id
+                                and topic['talk']['owner']['user_id'] == self.group.owner_id
                                 and 'files' in topic['talk'].keys()):
                             for file in topic['talk']['files']:
                                 file_url = self.get_file_download_url(file['file_id'])
@@ -87,6 +86,7 @@ class Downloader():
                     return None
         except RequestException as e:
             print('Get topics error.', e.args)
+
             return None
 
     def getTimeStr(self, input_time):
@@ -108,22 +108,15 @@ class Downloader():
         time.sleep(5)
         if create_time:
             print('Got topics till ', create_time)
-
-        if create_time:
             self.get_topic_list(base_url, last_download_time, self.getTimeStr(create_time))
 
     def start(self, expect_stop_time=None):
 
-        base_url = TOPICS_URL.format(ZSXQ_VERSION, self.group_id)
-        if str(self.group_id) not in self.config.sections():
-            self.config[str(self.group_id)] = {}
-            last_download_time = time.strftime('%Y-%m-%d 00:00:00')
-        else:
-            last_download_time = self.config[str(self.group_id)]['LastDownloadTime']
+        base_url = TOPICS_URL.format(ZSXQ_VERSION, self.group.group_id)
 
-            self.config[str(self.group_id)]['LastDownloadTime'] = time.strftime('%Y-%m-%d %H:%M:%S')
-        with open(self.group_log_file, 'w') as configfile:
-            self.config.write(configfile)
+        last_download_time = self.group.last_dl_time
+
+        self.group.update_last_dl_time(time.strftime('%Y-%m-%d %H:%M:%S'))
 
         if expect_stop_time:
             last_download_time = expect_stop_time
@@ -133,22 +126,37 @@ class Downloader():
             log('Downloaded {} topics.'.format(self.count))
 
 
+collection = None
+
+
 def process_data(topic):
     with open(os.path.join(TEMP_FOLDER, 'Topic_{}.txt').format(topic['topic_id']),
               'w', encoding='utf-8') as f:
         f.write(json.dumps(topic))
 
+        global collection
+        if collection:
+            collection.insert(topic)
+
 
 def download():
-    #初始化两个星球，三个字段分别为：星球名称，星球ID号，星球创始人ID号。
-    #ID号可以从浏览器检查网页中的Network中获取。
-    groups = [('老齐的读书圈', 454548818428, 88288542115152),
-              ('齐俊杰的粉丝群', 552521181154, 88288542115152)]
+    for group in GROUPS:
+        print('Downloading {}...'.format(group.group_name))
+        conn = None
+        if DOWNLOAD_FILE_FLAG == 'True':
+            conn = MongoClient('localhost', 27017)
+            db = conn.get_database('Zsxq')
+            global collection
+            collection = db['Topics_' + str(group.group_id)]
 
-    for group in groups:
-        print('Downloading {}...'.format(group[0]))
-        Downloader(group[1], group[2], process_data).start()
+        Downloader(group, process_data).start()
+
+        if conn:
+            conn.close()
 
 
 if __name__ == '__main__':
-    download()
+    try:
+        download()
+    except Exception as e:
+        log('Download data failed. {}'.format(e.args))
