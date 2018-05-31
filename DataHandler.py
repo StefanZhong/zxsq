@@ -8,6 +8,14 @@ import os, glob
 from DocxHelper import DocxHelper
 import datetime
 
+def replace_special(text):
+    s = ['*','.', '?', '+', '$', '^', '[', ']', '(', ')', '{', '}', '|', '\\']
+    text2 = ''
+    for c in text:
+        if c in s:
+            c = '\\' + c
+        text2 += c
+    return text2
 
 class DataHandler():
     def __init__(self, group, start_date, end_date):
@@ -28,25 +36,32 @@ class DataHandler():
             raise (e)
 
     def get_links(self, text):
-        import re
-        import urllib.request
-        # text1 = text
-        text = urllib.request.unquote(text)
-        result = re.findall('<e type="web" href="(.*?)".*?title="(.*?)".*?/>', text)
+        s = ''
+        try:
+            import re
+            import urllib.request
+            # text1 = text
+            text = urllib.request.unquote(text)
+            result = re.findall('<e type="web" href="(.*?)".*?title="(.*?)".*?/>', text)
 
-        links = []
-        if result:
-            for link in result:
-                s = re.findall('<e type="web" href="{}".*?title="{}".*?/>'.format(link[0], link[1]), text)
-                text = text.replace(s[0], '')
-                links.append((link[1], link[0]))
+            links = []
 
-        title = re.findall('<e type="mention".*?title="(.*?)"', text)
-        if title:
-            for t in title:
-                s = re.findall('<e type="mention".*?title="{}".*?/>'.format(t), text)
-                text = text.replace(s[0], t)
-        return text, links
+            if result:
+                for link in result:
+                    s = re.findall(r'<e type="web" href="{}".*?title="{}".*?/>'.format(replace_special(link[0]), replace_special(link[1])), text)
+
+                    text = text.replace(s[0], '')
+                    links.append((link[1], link[0]))
+
+            title = re.findall('<e type="mention".*?title="(.*?)"', text)
+            if title:
+                for t in title:
+                    s = re.findall(r'<e type="mention".*?title="{}".*?/>'.format(replace_special(t)), text)
+                    text = text.replace(s[0], t)
+            return text, links
+        except Exception as e:
+            print('出错',text,e)
+            return text, []
 
     def get_file_links(self, topic):
         file_links = []
@@ -204,5 +219,5 @@ def do_something(group, word, date):
 if __name__ == '__main__':
     start_date = datetime.datetime.now() - datetime.timedelta(days=1)
     start_date = datetime.datetime.strftime(start_date, '%Y-%m-%d')
-    groups = Group.load_groups()
-    DataHandler(groups[0], start_date, None).run(do_something)
+
+    DataHandler(GROUPS[0], start_date, None).run(do_something)

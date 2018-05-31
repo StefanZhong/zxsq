@@ -8,7 +8,7 @@ from docx.oxml.ns import qn
 from docx.shared import RGBColor
 
 import docx
-
+from Config import log
 
 class DocxHelper():
     def __init__(self, file_name):
@@ -79,7 +79,10 @@ class DocxHelper():
         r.rPr.rFonts.set(qn('w:eastAsia'), u'仿宋')
         if images:
             for image in images:
-                self.doc.add_picture(image)
+                try:
+                    self.doc.add_picture(image)
+                except Exception as e:
+                    log('add image {} failed. {}'.format(image, e))
         if links:
             for link in links:
                 self.add_hyperlink(p, link[1], '按住Ctrl点击查看链接:' + link[0])
@@ -90,25 +93,26 @@ class DocxHelper():
     def add_QA(self, question, answer, create_time, images_q, images_a, links):
         self.add_paragragh("【{} {}】问题:{}".format(create_time[:10], create_time[11:19], question), RGBColor(0, 0, 0),
                            images_q, False, links)
-        self.add_paragragh("【星主回答】:{}\n".format(answer), RGBColor(139, 58, 58), images_a, True, [])
+        self.add_paragragh("【老齐回答】:{}\n".format(answer), RGBColor(139, 58, 58), images_a, True, [])
 
     def add_Talk(self, text, create_time, images, links, file_links):
         p = self.add_paragragh("【{} {}】{}".format(create_time[:10], create_time[11:19], text), RGBColor(0, 0, 0),
                                images, False, links)
         for link in file_links:
-            self.add_hyperlink(p,link[1], '按住Ctrl点击下载:' + link[0])
+            self.add_hyperlink(p, link[1], '按住Ctrl点击下载:' + link[0])
+
 
 if __name__ == '__main__':
     d = DocxHelper('test.docx')
     d.add_QA('标题', '回答', '2018-12-12T12:23:23', [], [], [('abcdddd', 'http://163.com')])
     d.add_Talk('内容', '2018-12-12T12:23:23', [], [], [('文件下载', 'http://163.com')])
     d.save()
-        # import re
-        # import urllib.request
-        #
-        # text = r'<e type="web" href="https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FK4jIFpdrdECvROQASeZpvA" title="%E7%8E%AF%E7%90%83%E6%97%B6%E5%B1%80" cache="http%3A%2F%2Fcache.zsxq.com%2F201805%2F371f7956cd72ae85f0c3a465bab7a226054b3d74eca61b1c440cbbfd9e6bf368"/>'
-        # result = re.findall('href="(.*?)[\s]*title="(.*?)"', urllib.request.unquote(text))  # title="(.*?)"
-        # print(result[0][1])
+    # import re
+    # import urllib.request
+    #
+    # text = r'<e type="web" href="https%3A%2F%2Fmp.weixin.qq.com%2Fs%2FK4jIFpdrdECvROQASeZpvA" title="%E7%8E%AF%E7%90%83%E6%97%B6%E5%B1%80" cache="http%3A%2F%2Fcache.zsxq.com%2F201805%2F371f7956cd72ae85f0c3a465bab7a226054b3d74eca61b1c440cbbfd9e6bf368"/>'
+    # result = re.findall('href="(.*?)[\s]*title="(.*?)"', urllib.request.unquote(text))  # title="(.*?)"
+    # print(result[0][1])
 
     #
     # def add_hyperlink(paragraph, url, text, color, underline):
